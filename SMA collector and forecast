@@ -1,0 +1,252 @@
+//@version=4
+//made by @Daveatt with love
+//forecast method inspired by @yatrader2 : https://www.tradingview.com/script/x7Oc6bB7-Triple-MA-Forecast/
+//labels method inspired by @scarf : https://www.tradingview.com/script/AZ1vAqtl-Long-Term-Levels-4h-D-W-M-Q-Y/
+//Please give those 2 folks a follow as they indirectly contributed to this indicator
+study("SMA collector MTF Forecast", shorttitle="SMA collector MTF Forecast", overlay=true)
+
+src_in=input(close, title="Source")
+showforecast=input(false, title="Show the forecast(s)")
+incompletecandles=input(false, title="Include current unclosed current candle")
+//type=input(defval="SMA", options=["SMA"],title="MA Type")
+forecasttype=input(defval="flat", options=["flat", "linreg"], title="MA Forecast Type (flat assumes prices stay the same / linreg does n period LR forecast)")
+linreglen=input(3,title="# of candles to use in linear regression")
+showlabels = input(title="Label Lines", type=input.bool, defval=true)
+offset_val = input(title="Label Offset", type=input.integer, defval=8)
+
+matype(_type,_src,_len)=>
+    _len==0 ? _src :
+     _type=="SMA"?sma(_src,_len):
+    //  _type=="EMA"?ema(_src,_len):
+    //  _type=="WMA"?wma(_src,_len):
+     na
+
+forecast(_type,_src,_flen,_lrlen)=>
+    _type=="flat" ? _src :
+     _type=="linreg" ? linreg(_src,_lrlen,_flen) : na
+
+bar = showforecast and incompletecandles ? 0 : (showforecast) ? 1 : 0
+src = src_in[bar]
+
+forecast1=forecast(forecasttype,src,1,linreglen)
+forecast2=forecast(forecasttype,src,2,linreglen)
+forecast3=forecast(forecasttype,src,3,linreglen)
+
+// colors
+color50 = color.purple
+color7 = color.purple
+color20 = color.blue
+color200 = color.red
+color100 = color.fuchsia
+
+//styles
+styledaily = plot.style_circles
+styleweekly = plot.style_circles
+stylemonthly = plot.style_cross
+styleforecast = plot.style_circles
+
+inputSMA1 = 7
+res1="M"
+out1 = sma(close, inputSMA1)
+SMA1forecast1 = showforecast ? ((sma(src,inputSMA1-1)*(inputSMA1-1))+forecast1)/inputSMA1 : na
+SMA1forecast2 = showforecast ? ((sma(src,inputSMA1-2)*(inputSMA1-2))+forecast1+forecast2)/inputSMA1 : na
+SMA1forecast3 = showforecast ? ((sma(src,inputSMA1-3)*(inputSMA1-3))+forecast1+forecast2+forecast3)/inputSMA1 : na
+
+inputSMA2 = 20
+res2="M"
+out2 = sma(close, inputSMA2)
+SMA2forecast1 = showforecast ? ((sma(src,inputSMA2-1)*(inputSMA2-1))+forecast1)/inputSMA2 : na
+SMA2forecast2 = showforecast ? ((sma(src,inputSMA2-2)*(inputSMA2-2))+forecast1+forecast2)/inputSMA2 : na
+SMA2forecast3 = showforecast ? ((sma(src,inputSMA2-3)*(inputSMA2-3))+forecast1+forecast2+forecast3)/inputSMA2 : na
+
+inputSMA3 = 50
+res3="M"
+out3 = sma(src, inputSMA3)
+SMA3forecast1 = showforecast ? ((sma(src,inputSMA3-1)*(inputSMA3-1))+forecast1)/inputSMA3 : na
+SMA3forecast2 = showforecast ? ((sma(src,inputSMA3-2)*(inputSMA3-2))+forecast1+forecast2)/inputSMA3 : na
+SMA3forecast3 = showforecast ? ((sma(src,inputSMA3-3)*(inputSMA3-3))+forecast1+forecast2+forecast3)/inputSMA3 : na
+
+inputSMA4 = 20
+res4="D"
+out4 = sma(src, inputSMA4)
+SMA4forecast1 = showforecast ? ((sma(src,inputSMA4-1)*(inputSMA4-1))+forecast1)/inputSMA4 : na
+SMA4forecast2 = showforecast ? ((sma(src,inputSMA4-2)*(inputSMA4-2))+forecast1+forecast2)/inputSMA4 : na
+SMA4forecast3 = showforecast ? ((sma(src,inputSMA4-3)*(inputSMA4-3))+forecast1+forecast2+forecast3)/inputSMA4 : na
+
+inputSMA5 = 50
+res5="D"
+out5 = sma(src, inputSMA5)
+SMA5forecast1 = showforecast ? ((sma(src,inputSMA5-1)*(inputSMA5-1))+forecast1)/inputSMA5 : na
+SMA5forecast2 = showforecast ? ((sma(src,inputSMA5-2)*(inputSMA5-2))+forecast1+forecast2)/inputSMA5 : na
+SMA5forecast3 = showforecast ? ((sma(src,inputSMA5-3)*(inputSMA5-3))+forecast1+forecast2+forecast3)/inputSMA5 : na
+
+inputSMA6 = 100
+res6="D"
+out6 = sma(src, inputSMA6)
+SMA6forecast2 = showforecast ? ((sma(src,inputSMA6-2)*(inputSMA6-2))+forecast1+forecast2)/inputSMA6 : na
+SMA6forecast1 = showforecast ? ((sma(src,inputSMA6-1)*(inputSMA6-1))+forecast1)/inputSMA6 : na
+SMA6forecast3 = showforecast ? ((sma(src,inputSMA6-3)*(inputSMA6-3))+forecast1+forecast2+forecast3)/inputSMA6 : na
+
+inputSMA7 = 200
+res7="D"
+out7 = sma(src, inputSMA7)
+SMA7forecast1 = showforecast ? ((sma(src,inputSMA7-1)*(inputSMA7-1))+forecast1)/inputSMA7 : na
+SMA7forecast2 = showforecast ? ((sma(src,inputSMA7-2)*(inputSMA7-2))+forecast1+forecast2)/inputSMA7 : na
+SMA7forecast3 = showforecast ? ((sma(src,inputSMA7-3)*(inputSMA7-3))+forecast1+forecast2+forecast3)/inputSMA7 : na
+
+inputSMA8 = 20
+res8="W"
+out8 = sma(src, inputSMA8)
+SMA8forecast1 = showforecast ? ((sma(src,inputSMA8-1)*(inputSMA8-1))+forecast1)/inputSMA8 : na
+SMA8forecast2 = showforecast ? ((sma(src,inputSMA8-2)*(inputSMA8-2))+forecast1+forecast2)/inputSMA8 : na
+SMA8forecast3 = showforecast ? ((sma(src,inputSMA8-3)*(inputSMA8-3))+forecast1+forecast2+forecast3)/inputSMA8 : na
+
+inputSMA9 = 50
+res9="W"
+out9 = sma(src, inputSMA9)
+SMA9forecast2 = showforecast ? ((sma(src,inputSMA9-2)*(inputSMA9-2))+forecast1+forecast2)/inputSMA9 : na
+SMA9forecast1 = showforecast ? ((sma(src,inputSMA9-1)*(inputSMA9-1))+forecast1)/inputSMA9 : na
+SMA9forecast3 = showforecast ? ((sma(src,inputSMA9-3)*(inputSMA9-3))+forecast1+forecast2+forecast3)/inputSMA9 : na
+
+inputSMA10 = 100
+res10="W"
+out10 = sma(src, inputSMA10)
+SMA10forecast1 = showforecast ? ((sma(src,inputSMA10-1)*(inputSMA10-1))+forecast1)/inputSMA10 : na
+SMA10forecast2 = showforecast ? ((sma(src,inputSMA10-2)*(inputSMA10-2))+forecast1+forecast2)/inputSMA10 : na
+SMA10forecast3 = showforecast ? ((sma(src,inputSMA10-3)*(inputSMA10-3))+forecast1+forecast2+forecast3)/inputSMA10 : na
+
+inputSMA11 = 200
+res11="W"
+out11 = sma(src, inputSMA11)
+SMA11forecast1 = showforecast ? ((sma(src,inputSMA11-1)*(inputSMA11-1))+forecast1)/inputSMA11 : na
+SMA11forecast2 = showforecast ? ((sma(src,inputSMA11-2)*(inputSMA11-2))+forecast1+forecast2)/inputSMA11 : na
+SMA11forecast3 = showforecast ? ((sma(src,inputSMA11-3)*(inputSMA11-3))+forecast1+forecast2+forecast3)/inputSMA11 : na
+
+
+// Security SMA
+SMA1_MTF = security(syminfo.tickerid, res1, out1, barmerge.gaps_off, barmerge.lookahead_on)
+SMA2_MTF = security(syminfo.tickerid, res2, out2, barmerge.gaps_off, barmerge.lookahead_on)
+SMA3_MTF = security(syminfo.tickerid, res3, out3, barmerge.gaps_off, barmerge.lookahead_on)
+SMA4_MTF = security(syminfo.tickerid, res4, out4, barmerge.gaps_off, barmerge.lookahead_on)
+SMA5_MTF = security(syminfo.tickerid, res5, out5, barmerge.gaps_off, barmerge.lookahead_on)
+SMA6_MTF = security(syminfo.tickerid, res6, out6, barmerge.gaps_off, barmerge.lookahead_on)
+SMA7_MTF = security(syminfo.tickerid, res7, out7, barmerge.gaps_off, barmerge.lookahead_on)
+SMA8_MTF = security(syminfo.tickerid, res8, out8, barmerge.gaps_off, barmerge.lookahead_on)
+SMA9_MTF = security(syminfo.tickerid, res9, out9, barmerge.gaps_off, barmerge.lookahead_on)
+SMA10_MTF = security(syminfo.tickerid, res10, out10, barmerge.gaps_off, barmerge.lookahead_on)
+SMA11_MTF = security(syminfo.tickerid, res11, out11, barmerge.gaps_off, barmerge.lookahead_on)
+
+// Security Forecast
+SMA3forecast1_MTF = showforecast ? security(syminfo.tickerid, res3, SMA3forecast1, barmerge.gaps_off, barmerge.lookahead_on) : na 
+SMA3forecast2_MTF = showforecast ? security(syminfo.tickerid, res3, SMA3forecast2, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA3forecast3_MTF = showforecast ? security(syminfo.tickerid, res3, SMA3forecast3, barmerge.gaps_off, barmerge.lookahead_on) : na
+
+SMA4forecast1_MTF = showforecast ? security(syminfo.tickerid, res4, SMA4forecast1, barmerge.gaps_off, barmerge.lookahead_on) : na 
+SMA4forecast2_MTF = showforecast ? security(syminfo.tickerid, res4, SMA4forecast2, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA4forecast3_MTF = showforecast ? security(syminfo.tickerid, res4, SMA4forecast3, barmerge.gaps_off, barmerge.lookahead_on) : na
+
+SMA5forecast1_MTF = showforecast ? security(syminfo.tickerid, res5, SMA5forecast1, barmerge.gaps_off, barmerge.lookahead_on) : na 
+SMA5forecast2_MTF = showforecast ? security(syminfo.tickerid, res5, SMA5forecast2, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA5forecast3_MTF = showforecast ? security(syminfo.tickerid, res5, SMA5forecast3, barmerge.gaps_off, barmerge.lookahead_on) : na
+
+SMA6forecast1_MTF = showforecast ? security(syminfo.tickerid, res6, SMA6forecast1, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA6forecast2_MTF = showforecast ? security(syminfo.tickerid, res6, SMA6forecast2, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA6forecast3_MTF = showforecast ? security(syminfo.tickerid, res6, SMA6forecast3, barmerge.gaps_off, barmerge.lookahead_on) : na
+// 
+SMA7forecast1_MTF = showforecast ? security(syminfo.tickerid, res7, SMA7forecast1, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA7forecast2_MTF = showforecast ? security(syminfo.tickerid, res7, SMA7forecast2, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA7forecast3_MTF = showforecast ? security(syminfo.tickerid, res7, SMA7forecast3, barmerge.gaps_off, barmerge.lookahead_on) : na
+
+SMA8forecast1_MTF = showforecast ? security(syminfo.tickerid, res8, SMA8forecast1, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA8forecast2_MTF = showforecast ? security(syminfo.tickerid, res8, SMA8forecast2, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA8forecast3_MTF = showforecast ? security(syminfo.tickerid, res8, SMA8forecast3, barmerge.gaps_off, barmerge.lookahead_on) : na
+
+SMA9forecast1_MTF = showforecast ? security(syminfo.tickerid, res9, SMA9forecast1, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA9forecast2_MTF = showforecast ? security(syminfo.tickerid, res9, SMA9forecast2, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA9forecast3_MTF = showforecast ? security(syminfo.tickerid, res9, SMA9forecast3, barmerge.gaps_off, barmerge.lookahead_on) : na
+
+SMA10forecast1_MTF = showforecast ? security(syminfo.tickerid, res10, SMA10forecast1, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA10forecast2_MTF = showforecast ? security(syminfo.tickerid, res10, SMA10forecast2, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA10forecast3_MTF = showforecast ? security(syminfo.tickerid, res10, SMA10forecast3, barmerge.gaps_off, barmerge.lookahead_on) : na
+
+SMA11forecast1_MTF = showforecast ? security(syminfo.tickerid, res11, SMA11forecast1, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA11forecast2_MTF = showforecast ? security(syminfo.tickerid, res11, SMA11forecast2, barmerge.gaps_off, barmerge.lookahead_on) : na
+SMA11forecast3_MTF = showforecast ? security(syminfo.tickerid, res11, SMA11forecast3, barmerge.gaps_off, barmerge.lookahead_on) : na
+
+//Plots SMAs
+
+plot(SMA1_MTF, title="SMA 7 (M)", offset=(-1*bar), transp=0, color=color7, style=stylemonthly, linewidth=4)
+plot(SMA2_MTF, title="SMA 20 (M)", offset=(-1*bar), transp=0, color=color20, style=stylemonthly, linewidth=4)
+plot(SMA3_MTF, title="SMA 50 (M)", offset=(-1*bar), transp=0, color=color50, style=stylemonthly, linewidth=4)
+plot(SMA4_MTF, title="SMA 20 (D)", offset=(-1*bar), transp=0, color=color20, linewidth=4)
+plot(SMA5_MTF, title="SMA 50 (D)", offset=(-1*bar), transp=0, color=color50, linewidth=4)
+plot(SMA6_MTF, title="SMA 100 (D)", offset=(-1*bar), transp=0, color=color100, linewidth=4)
+plot(SMA7_MTF, title="SMA 200 (D)", offset=(-1*bar), transp=0, color=color200, linewidth=4)
+plot(SMA8_MTF, title="SMA 20 (W)", offset=(-1*bar), transp=0, color=color20, style=styleweekly, linewidth=4)
+plot(SMA9_MTF, title="SMA 50 (W)", offset=(-1*bar), transp=0, color=color50, style=styleweekly, linewidth=4)
+plot(SMA10_MTF, title="SMA 100 (W)", offset=(-1*bar), transp=0, color=color100, style=styleweekly, linewidth=4)
+plot(SMA11_MTF, title="SMA 200 (W)", offset=(-1*bar), transp=0, color=color.green, style=styleweekly, linewidth=4)
+
+//Plots SMAs forecasts
+
+plot(showforecast ? SMA3forecast1_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=1-bar, show_last=1)
+plot(showforecast ? SMA3forecast2_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=2-bar, show_last=1)
+plot(showforecast ? SMA3forecast3_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=3-bar, show_last=1)
+
+plot(showforecast ? SMA4forecast1_MTF : na, color=color20, linewidth=2, style=styleforecast, offset=1-bar, show_last=1)
+plot(showforecast ? SMA4forecast2_MTF : na, color=color20, linewidth=2, style=styleforecast, offset=2-bar, show_last=1)
+plot(showforecast ? SMA4forecast3_MTF : na, color=color20, linewidth=2, style=styleforecast, offset=3-bar, show_last=1)
+
+plot(showforecast ? SMA5forecast1_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=1-bar, show_last=1)
+plot(showforecast ? SMA5forecast2_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=2-bar, show_last=1)
+plot(showforecast ? SMA5forecast3_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=3-bar, show_last=1)
+
+plot(showforecast ? SMA6forecast1_MTF : na, color=color100, linewidth=2, style=styleforecast, offset=1-bar, show_last=1)
+plot(showforecast ? SMA6forecast2_MTF : na, color=color100, linewidth=2, style=styleforecast, offset=2-bar, show_last=1)
+plot(showforecast ? SMA6forecast3_MTF : na, color=color100, linewidth=2, style=styleforecast, offset=3-bar, show_last=1)
+
+plot(showforecast ? SMA7forecast1_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=1-bar, show_last=1)
+plot(showforecast ? SMA7forecast2_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=2-bar, show_last=1)
+plot(showforecast ? SMA7forecast3_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=3-bar, show_last=1)
+
+plot(showforecast ? SMA8forecast1_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=1-bar, show_last=1)
+plot(showforecast ? SMA8forecast2_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=2-bar, show_last=1)
+plot(showforecast ? SMA8forecast3_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=3-bar, show_last=1)
+
+plot(showforecast ? SMA9forecast1_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=1-bar, show_last=1)
+plot(showforecast ? SMA9forecast2_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=2-bar, show_last=1)
+plot(showforecast ? SMA9forecast3_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=3-bar, show_last=1)
+
+plot(showforecast ? SMA10forecast1_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=1-bar, show_last=1)
+plot(showforecast ? SMA10forecast2_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=2-bar, show_last=1)
+plot(showforecast ? SMA10forecast3_MTF : na, color=color50, linewidth=2, style=styleforecast, offset=3-bar, show_last=1)
+
+plot(showforecast ? SMA11forecast1_MTF : na, color=color200, linewidth=2, style=styleforecast, offset=1-bar, show_last=1)
+plot(showforecast ? SMA11forecast2_MTF : na, color=color200, linewidth=2, style=styleforecast, offset=2-bar, show_last=1)
+plot(showforecast ? SMA11forecast3_MTF : na, color=color200, linewidth=2, style=styleforecast, offset=3-bar, show_last=1)
+
+// LABELS
+
+plot(showlabels ? SMA1_MTF : na, title="SMA 7 (M)",linewidth=2, color=color7, show_last=1, trackprice=true, offset = offset_val)
+plot(showlabels ? SMA2_MTF : na, title="SMA 20 (M)",linewidth=2, color=color20, show_last=1, trackprice=true, offset = offset_val)
+plot(showlabels ? SMA3_MTF : na, title="SMA 50 (M)",linewidth=2, color=color50, show_last=1, trackprice=true, offset = offset_val)
+plot(showlabels ? SMA4_MTF : na, title="SMA 20 (D)",linewidth=2, color=color20, show_last=1, trackprice=true, offset = offset_val)
+plot(showlabels ? SMA5_MTF : na, title="SMA 50 (D)",linewidth=2, color=color50, show_last=1, trackprice=true, offset = offset_val)
+plot(showlabels ? SMA6_MTF : na, title="SMA 100 (D)",linewidth=2, color=color100, show_last=1, trackprice=true, offset = offset_val)
+plot(showlabels ? SMA7_MTF : na, title="SMA 200 (D)",linewidth=2, color=color200, show_last=1, trackprice=true, offset = offset_val)
+plot(showlabels ? SMA8_MTF : na, title="SMA 20 (W)",linewidth=2, color=color20, show_last=1, trackprice=true, offset = offset_val)
+plot(showlabels ? SMA9_MTF : na, title="SMA 50 (W)",linewidth=2, color=color50, show_last=1, trackprice=true, offset = offset_val)
+plot(showlabels ? SMA10_MTF : na, title="SMA 100 (W)",linewidth=2, color=color100, show_last=1, trackprice=true, offset = offset_val)
+plot(showlabels ? SMA11_MTF : na, title="SMA 200 (W)",linewidth=2, color=color200, show_last=1, trackprice=true, offset = offset_val)
+
+plotshape(showlabels ? SMA1_MTF : na, style=shape.labeldown, location=location.absolute, color=color7,  textcolor=color.new(color.white,0), show_last=1, text="SMA 7 (M)",  offset = offset_val, transp=20, title="SMA 7 (M)")
+plotshape(showlabels ? SMA2_MTF : na, style=shape.labeldown, location=location.absolute, color=color20,  textcolor=color.new(color.white,0), show_last=1, text="SMA 20 (M)",  offset = offset_val, transp=20, title="SMA 20 (M)")
+plotshape(showlabels ? SMA3_MTF : na, style=shape.labeldown, location=location.absolute, color=color50,  textcolor=color.new(color.white,0), show_last=1, text="SMA 50 (M)",  offset = offset_val, transp=20, title="SMA 50 (M)")
+plotshape(showlabels ? SMA4_MTF : na, style=shape.labeldown, location=location.absolute, color=color20,  textcolor=color.new(color.white,0), show_last=1, text="SMA 20 (D)",  offset = offset_val, transp=20, title="SMA 20 (D)")
+plotshape(showlabels ? SMA5_MTF : na, style=shape.labeldown, location=location.absolute, color=color50,  textcolor=color.new(color.white,0), show_last=1, text="SMA 50 (D)",  offset = offset_val, transp=20, title="SMA 50 (D)")
+plotshape(showlabels ? SMA6_MTF : na, style=shape.labeldown, location=location.absolute, color=color100,  textcolor=color.new(color.white,0), show_last=1, text="SMA 100 (D)",  offset = offset_val, transp=20, title="SMA 100 (D)")
+plotshape(showlabels ? SMA7_MTF : na, style=shape.labeldown, location=location.absolute, color=color200,  textcolor=color.new(color.white,0), show_last=1, text="SMA 200 (D)",  offset = offset_val, transp=20, title="SMA 200 (D)")
+plotshape(showlabels ? SMA8_MTF : na, style=shape.labeldown, location=location.absolute, color=color20,  textcolor=color.new(color.white,0), show_last=1, text="SMA 20 (W)",  offset = offset_val, transp=20, title="SMA 20 (W)")
+plotshape(showlabels ? SMA9_MTF : na, style=shape.labeldown, location=location.absolute, color=color50,  textcolor=color.new(color.white,0), show_last=1, text="SMA 50 (W)",  offset = offset_val, transp=20, title="SMA 50 (W)")
+plotshape(showlabels ? SMA10_MTF : na, style=shape.labeldown, location=location.absolute, color=color100,  textcolor=color.new(color.white,0), show_last=1, text="SMA 100 (W)",  offset = offset_val, transp=20, title="SMA 100 (W)")
+plotshape(showlabels ? SMA11_MTF : na, style=shape.labeldown, location=location.absolute, color=color200,  textcolor=color.new(color.white,0), show_last=1, text="SMA 200 (W)",  offset = offset_val, transp=20, title="SMA 200 (W)")
