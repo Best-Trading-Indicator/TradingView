@@ -1,0 +1,372 @@
+//@version=4
+//author=@Daveatt/David Attias
+
+// EXTERNAL SIGNAL PROTOCOL
+//      Only one external indicator can be connected to a script; in order to leverage its use to the fullest,
+//      the engine provides options to use it as either and entry signal, an entry/exit signal or a filter.
+//      When used as an entry signal, you can also use the signal to provide the entry stop. Here’s how this works.
+//      For buy/sell signals : supply +1.0 for bull (long entries allowed), -1.0 for bear (short entries allowed).
+
+study("Trade Manager (Open Source Version)", shorttitle="Trade Manager", overlay=true, precision=6)
+
+ext_source_ = input(close, type=input.source, title="Data source")
+showlabels = input(title="==============Label Lines==============", type=input.bool, defval=true)
+offset_labels = input(title="Labels Offset", type=input.integer, defval=10)
+//showindicator = input(title="==============Show indicator(s) ==============", type=input.bool, defval=true)
+// Panel
+// showPanel = input(false, title="==============Show PNL Panel==============")
+// Stop Loss
+showStopLoss = input(title="==============Show Stop Loss signal============", type=input.bool, defval= true)
+stopLossType = input(defval="None", title="Stop Loss Types",options=["None", "Fixed", "Percentage", "% Trailing", "TP Trailing"])
+stopLossPer = input(2, title='Stop Loss (For Percentage/% Trailing/TP Trailing option only)', type=input.float, step=0.5) * 0.01
+stopLossFixed = input(500, title='Stop Loss (For Fixed option only)', type=input.float, step=1, minval=1)
+// Factor=input(3,title="[Supertrend] Factor", minval=1,maxval = 100, type=input.float)
+// Pd=input(2, title="[Supertrend] PD", minval=1,maxval = 100)
+// Take profit levels
+showTPinput = input(title="=========Show Take Profit signals========", type=input.bool, defval= true)
+takeProfitType = input(defval="Percentage", title="Take Profit Types",options=["Percentage"])
+tp1 = input(2, minval=0.0, title = "Take profit 1 target in %", type=input.float, step=0.25) * 0.01
+tp2 = input(4.5, minval=0.0, title = "Take profit 2 target in %", type=input.float, step=0.25) * 0.01
+tp3 = input(6, minval=0.0, title = "Take profit 3 target in %", type=input.float, step=0.25) * 0.01
+
+// variables initialisation
+ext_source = nz(ext_source_)
+
+// 1 is bull signal
+bull = (ext_source == 1)
+// -1 is bear signal
+bear = (ext_source == -1)
+
+// store symbol value when signal is hit
+buy_value = valuewhen(bull, close, 0)
+sell_value = valuewhen(bear, close, 0)
+
+// store the candles
+sinceNUP = barssince(bull)
+sinceNDN = barssince(bear)
+
+// Draw signal labels
+ShowBuyEntry = (showlabels) and (buy_value)
+ShowSellEntry = (showlabels) and (sell_value)
+
+// store the indicator trend
+BuyTrend = sinceNDN > sinceNUP
+SellTrend = sinceNDN < sinceNUP
+
+// store if there is a change of trend
+BuyToSell = BuyTrend and SellTrend[1]
+SellToBuy = SellTrend and BuyTrend[1]
+ChangeTrend = BuyToSell or SellToBuy
+
+
+var label BuyPriceLabel = na
+var label SellPriceLabel = na
+
+
+if bull
+    
+    label.delete(BuyPriceLabel)
+    posBUYlabel = low * 0.95
+    BuyPriceLabel := label.new(bar_index, posBUYlabel, 'LE ' + tostring(buy_value), color=color.green, textcolor=color.white, style=label.style_labelup, yloc=yloc.price, xloc=xloc.bar_index)
+    //label.delete(BuyPriceLabel[1])
+
+if bear
+    
+    label.delete(SellPriceLabel)
+    posSELLlabel = high * 1.05
+    SellPriceLabel := label.new(bar_index, posSELLlabel, 'SE ' + tostring(sell_value), color=color.red, textcolor=color.white, style=label.style_labeldown, yloc=yloc.price, xloc=xloc.bar_index)
+    //label.delete(SellPriceLabel[1])
+
+
+// SL and TPs calculations and plots
+
+// ———————————————————— Function used to round values.
+RoundToTick( _price) => round(_price/syminfo.mintick)*syminfo.mintick
+
+Round( _val, _decimals) => 
+    // Rounds _val to _decimals places.
+    _p = pow(10,_decimals)
+    round(abs(_val)*_p)/_p*sign(_val)
+
+// STOP LOSS
+
+lapos_x_TP_SL = time + round(change(time)*15)
+is_SL_reached = false
+longTrailStopPrice = 0.0, longTrailStopPrice := nz(longTrailStopPrice[1])
+shortTrailStopPrice = 0.0, shortTrailStopPrice := nz(shortTrailStopPrice[1])
+stopPriceBuy = 0.0, stopPriceBuy := nz(stopPriceBuy[1])
+stopPriceSell = 0.0, stopPriceSell := nz(stopPriceSell[1])
+
+longTrailStopPrice := if BuyTrend
+    stopValue = close * (1 - stopLossPer)
+    max(stopValue, longTrailStopPrice[1])
+else
+    0
+
+shortTrailStopPrice := if SellTrend
+    stopValue = close * (1 + stopLossPer)
+    min(stopValue, shortTrailStopPrice[1])
+else
+    999999
+
+// mode 0 = buy
+// mode 1 = sell
+getStopPrice(mode) =>
+
+    float perStopPrice = 0.0, float fixed=0.0
+
+    if mode == 0
+        if stopLossType == "Fixed"
+            stopLossFixed
+        else
+            if stopLossType == "Percentage" or stopLossType == "TP Trailing" 
+                perStopPrice := buy_value * (1 - stopLossPer)
+                perStopPrice
+            else
+                if stopLossType == "% Trailing"
+                    longTrailStopPrice
+                else
+                    -1
+    else // mode == 1
+        if stopLossType == "Fixed"
+            stopLossFixed
+        else
+            if stopLossType == "Percentage" or stopLossType == "TP Trailing" 
+                perStopPrice := sell_value * (1 + stopLossPer)
+                perStopPrice
+            else
+                if stopLossType == "% Trailing"
+                    shortTrailStopPrice
+                else
+                    -1
+
+//var label StopBuyPriceLabel = na
+var label StopSellPriceLabel = na
+var label StopBuyPriceLabel = na
+label.delete(StopBuyPriceLabel)
+label.delete(StopSellPriceLabel)
+
+displayLabelStopLoss = showlabels and showStopLoss
+stopPriceBuy := (displayLabelStopLoss) ? RoundToTick(getStopPrice(0)) : -1
+stopPriceSell := (displayLabelStopLoss) ? RoundToTick(getStopPrice(1)) : -1
+useStopLoss = displayLabelStopLoss and (stopPriceBuy > 0 or stopPriceSell > 0)
+// displayStopLossBuy = (stopLossType == "Supertrend") ? useStopLoss and BuyTrend and (S_Buy == 1) : useStopLoss and BuyTrend
+// displayStopLossSell = (stopLossType == "Supertrend") ? useStopLoss and SellTrend and (S_Sell == 1) : useStopLoss and SellTrend
+displayStopLossBuy = useStopLoss and BuyTrend
+displayStopLossSell = useStopLoss and SellTrend
+
+if displayStopLossBuy //and barstate.isrealtime
+    StopBuyPriceLabel := label.new(lapos_x_TP_SL, stopPriceBuy, 'SL ' + tostring(stopPriceBuy), color=color.orange, textcolor=color.white, style=label.style_labelup, yloc=yloc.price, xloc=xloc.bar_time, size=size.small)
+    //label.delete(StopBuyPriceLabel[1])
+if displayStopLossSell //and barstate.isrealtime
+    StopSellPriceLabel := label.new(lapos_x_TP_SL, stopPriceSell, 'SL ' + tostring(stopPriceSell), color=color.orange, textcolor=color.white, style=label.style_labeldown, yloc=yloc.price, xloc=xloc.bar_time, size=size.small)
+    //label.delete(StopSellPriceLabel[1])
+
+// Condition to detect SL hit
+BuyStopped = BuyTrend and stopPriceBuy > -1 and low < stopPriceBuy
+SellStopped = SellTrend and stopPriceSell > -1 and high > stopPriceSell
+is_SL_reached := displayLabelStopLoss and (BuyStopped or SellStopped)
+
+// Take Profits
+
+is_TP1_reached = false
+is_TP2_reached = false
+is_TP3_reached = false
+
+// mode 0 = buy
+// mode 1 = sell
+getTakeProfitPrice(mode) =>
+    
+    float _tp1 = 0.0, float _tp2 = 0.0, float _tp3 = 0.0
+
+    if takeProfitType == "Percentage"
+        if (mode == 0)
+            _tp1 := buy_value * (1 + tp1)
+            _tp2 := buy_value * (1 + tp2)
+            _tp3 := buy_value * (1 + tp3)
+        else // mode == 1
+            _tp1 := sell_value * (1 - tp1)
+            _tp2 := sell_value * (1 - tp2)
+            _tp3 := sell_value * (1 - tp3)
+    else // R/S
+        _tp1 := -1
+        _tp2 := -1
+        _tp3 := -1
+
+    [RoundToTick(_tp1), RoundToTick(_tp2), RoundToTick(_tp3)]
+
+[tp1_level_B, tp2_level_B, tp3_level_B] = getTakeProfitPrice(0)
+[tp1_level_S, tp2_level_S, tp3_level_S] = getTakeProfitPrice(1)
+useTP = tp1_level_B != -1 or tp1_level_S != -1  // percentage
+showtakeprofits = showlabels and showTPinput// and barstate.isrealtime
+displayTPBuy = showtakeprofits and useTP and BuyTrend
+displayTPSell = showtakeprofits and useTP and SellTrend
+
+var label TP1BuyPriceLabel = na
+var label TP2BuyPriceLabel = na
+var label TP3BuyPriceLabel = na
+var label TP1SellPriceLabel = na
+var label TP2SellPriceLabel = na
+var label TP3SellPriceLabel = na
+label.delete(TP1BuyPriceLabel)
+label.delete(TP2BuyPriceLabel)
+label.delete(TP3BuyPriceLabel)
+label.delete(TP1SellPriceLabel)
+label.delete(TP2SellPriceLabel)
+label.delete(TP3SellPriceLabel)
+
+if showtakeprofits
+
+    // if TPs are defined and trend is UP
+    if displayTPBuy// and barstate.isrealtime
+
+        // High must be below the TPs to keep dislpaying them
+        //if (close > stopPriceBuy)
+        TP1BuyPriceLabel := high < tp1_level_B ? label.new(lapos_x_TP_SL, tp1_level_B, 'TP1 ' + tostring(tp1_level_B), color=color.green, textcolor=color.white, style=label.style_labelup, yloc=yloc.price, xloc=xloc.bar_time, size=size.small) : na
+        TP2BuyPriceLabel := high < tp2_level_B ? label.new(lapos_x_TP_SL, tp2_level_B, 'TP2 ' + tostring(tp2_level_B), color=color.green, textcolor=color.white, style=label.style_labelup, yloc=yloc.price, xloc=xloc.bar_time, size=size.small) : na
+        TP3BuyPriceLabel := high < tp3_level_B ? label.new(lapos_x_TP_SL, tp3_level_B, 'TP3 ' + tostring(tp3_level_B), color=color.green, textcolor=color.white, style=label.style_labelup, yloc=yloc.price, xloc=xloc.bar_time, size=size.small) : na        
+
+    // if TPs are defined an trend is DOWN
+    if displayTPSell// and barstate.isrealtime
+
+        // low must be above the TPs to keep displaying them
+        //if (close < stopPriceSell) 
+        TP1SellPriceLabel := low > tp1_level_S ? label.new(lapos_x_TP_SL, tp1_level_S, 'TP1 ' + tostring(tp1_level_S), color=color.red, textcolor=color.white, style=label.style_labeldown, yloc=yloc.price, xloc=xloc.bar_time, size=size.small) : na
+        TP2SellPriceLabel := low > tp2_level_S ? label.new(lapos_x_TP_SL, tp2_level_S, 'TP2 ' + tostring(tp2_level_S), color=color.red, textcolor=color.white, style=label.style_labeldown, yloc=yloc.price, xloc=xloc.bar_time, size=size.small) : na
+        TP3SellPriceLabel := low > tp3_level_S ? label.new(lapos_x_TP_SL, tp3_level_S, 'TP3 ' + tostring(tp3_level_S), color=color.red, textcolor=color.white, style=label.style_labeldown, yloc=yloc.price, xloc=xloc.bar_time, size=size.small) : na
+
+if (showtakeprofits)
+    if (displayTPBuy)
+        if high >= tp1_level_B
+            is_TP1_reached := true
+        if high >= tp2_level_B
+            is_TP2_reached := true
+        if high >= tp3_level_B
+            is_TP3_reached := true
+    if (displayTPSell)
+        if low <= tp1_level_S
+            is_TP1_reached := true
+        if low <= tp2_level_S
+            is_TP2_reached := true
+        if low <= tp3_level_S
+            is_TP3_reached := true
+
+// remove labels from previous trend
+if BuyTrend // UP signal
+    // remove the previous short position
+    label.delete(SellPriceLabel) 
+    // reomve the previous long take profit
+    label.delete(TP1SellPriceLabel)
+    label.delete(TP2SellPriceLabel)
+    label.delete(TP3SellPriceLabel)
+    // reomve the previous long SL
+    label.delete(StopSellPriceLabel)
+    // delete the TP labels once reached
+    if useTP 
+        if is_TP1_reached
+            label.delete(TP1BuyPriceLabel)
+            // if Tp Trailing, move the SL Trailing up to TP1
+            if (stopLossType == "TP Trailing")
+                stopPriceBuy := tp1_level_B
+                label.delete(StopBuyPriceLabel)
+                StopBuyPriceLabel := label.new(lapos_x_TP_SL, stopPriceBuy, 'SL ' + tostring(stopPriceBuy), color=color.orange, textcolor=color.white, style=label.style_labelup, yloc=yloc.price, xloc=xloc.bar_time, size=size.small)
+        if is_TP2_reached
+            label.delete(TP2BuyPriceLabel)
+            // if Tp Trailing, move the SL Trailing up to TP2
+            if (stopLossType == "TP Trailing")
+                stopPriceBuy := tp2_level_B
+                label.delete(StopBuyPriceLabel)
+                StopBuyPriceLabel := label.new(lapos_x_TP_SL, stopPriceBuy, 'SL ' + tostring(stopPriceBuy), color=color.orange, textcolor=color.white, style=label.style_labelup, yloc=yloc.price, xloc=xloc.bar_time, size=size.small)
+        if is_TP3_reached
+            label.delete(TP3BuyPriceLabel)
+            // if Tp Trailing, move the SL Trailing up to TP3
+            if (stopLossType == "TP Trailing")
+                stopPriceBuy := tp3_level_B
+                label.delete(StopBuyPriceLabel)
+                StopBuyPriceLabel := label.new(lapos_x_TP_SL, stopPriceBuy, 'SL ' + tostring(stopPriceBuy), color=color.orange, textcolor=color.white, style=label.style_labelup, yloc=yloc.price, xloc=xloc.bar_time, size=size.small)
+    
+else
+    if SellTrend // DN signal
+        // remove the previous long position
+        label.delete(BuyPriceLabel) 
+        // reomve the previous long take profit
+        label.delete(TP1BuyPriceLabel)
+        label.delete(TP2BuyPriceLabel)
+        label.delete(TP3BuyPriceLabel)
+        // remove the previous long SL
+        label.delete(StopBuyPriceLabel)
+        if useTP
+            if is_TP1_reached
+                label.delete(TP1SellPriceLabel)
+                // if Tp Trailing, move the SL Trailing down to TP1
+                if (stopLossType == "TP Trailing") 
+                    stopPriceSell := tp1_level_S
+                    label.delete(StopSellPriceLabel)
+                    StopSellPriceLabel := label.new(lapos_x_TP_SL, stopPriceSell, 'SL ' + tostring(stopPriceSell), color=color.orange, textcolor=color.white, style=label.style_labeldown, yloc=yloc.price, xloc=xloc.bar_time, size=size.small)
+            if is_TP2_reached
+                label.delete(TP2SellPriceLabel)
+                // if Tp Trailing, move the SL Trailing down to TP2
+                if (stopLossType == "TP Trailing") 
+                    stopPriceSell := tp2_level_S
+                    label.delete(StopSellPriceLabel)
+                    StopSellPriceLabel := label.new(lapos_x_TP_SL, stopPriceSell, 'SL ' + tostring(stopPriceSell), color=color.orange, textcolor=color.white, style=label.style_labeldown, yloc=yloc.price, xloc=xloc.bar_time, size=size.small)
+            if is_TP3_reached
+                label.delete(TP3SellPriceLabel)    
+                // if Tp Trailing, move the SL Trailing down to TP3
+                if (stopLossType == "TP Trailing") 
+                    stopPriceSell := tp3_level_S
+                    label.delete(StopSellPriceLabel)
+                    StopSellPriceLabel := label.new(lapos_x_TP_SL, stopPriceSell, 'SL ' + tostring(stopPriceSell), color=color.orange, textcolor=color.white, style=label.style_labeldown, yloc=yloc.price, xloc=xloc.bar_time, size=size.small)
+
+
+// if is_SL_reached
+//     label.delete(StopBuyPriceLabel)
+//     label.delete(StopSellPriceLabel)
+
+
+// plot SL
+
+// plot Take profits
+TP1plot = displayTPBuy and not is_TP1_reached ? tp1_level_B : displayTPSell and not is_TP1_reached ? tp1_level_S : na
+TP2plot = displayTPBuy and not is_TP2_reached ? tp2_level_B : displayTPSell and not is_TP2_reached ? tp2_level_S : na
+TP3plot = displayTPBuy and not is_TP3_reached ? tp3_level_B : displayTPSell and not is_TP3_reached ? tp3_level_S : na
+colortakeprofitplot = displayTPBuy ? color.green : displayTPSell ? color.red : color.black
+plot(TP1plot, title="TP1 Buy Plot", linewidth=2, color=colortakeprofitplot, show_last=1, trackprice=true, transp=30)
+plot(TP2plot, title="TP2 Buy Plot", linewidth=2, color=colortakeprofitplot, show_last=1, trackprice=true, transp=30)
+plot(TP3plot, title="TP3 Buy Plot", linewidth=2, color=colortakeprofitplot, show_last=1, trackprice=true, transp=30)
+
+var SLplot = 0.0,  SLplot := nz(SLplot[1])
+SLplot := (displayStopLossBuy and not is_SL_reached) ? stopPriceBuy 
+ : (displayStopLossSell and not is_SL_reached) ? stopPriceSell : na
+plot(SLplot, title="SL Plot", linewidth=2, color=color.new(color.orange, 30), trackprice=true, show_last=1)
+
+
+
+// Alerts
+// If we select alerts on close, trigger the alerts only once per trend
+alertcondition(barssince(is_TP1_reached) == 1, title="TP1 hit !!", message="TP1 hit !!")
+alertcondition(barssince(is_TP2_reached) == 1, title="TP2 hit !!", message="TP2 hit !!")
+alertcondition(barssince(is_TP3_reached) == 1, title="TP3 hit !!", message="TP2 hit !!")
+alertcondition(barssince(is_SL_reached) == 1, title="SL hit !!", message="SL hit !!")
+
+if is_SL_reached
+    // remove the buy labels
+    label.delete(StopBuyPriceLabel)
+    label.delete(TP1BuyPriceLabel)
+    label.delete(TP2BuyPriceLabel)
+    label.delete(TP3BuyPriceLabel)
+
+    // remove the sell labels
+    label.delete(StopSellPriceLabel)
+    label.delete(TP1SellPriceLabel)
+    label.delete(TP2SellPriceLabel)
+    label.delete(TP3SellPriceLabel)
+
+// Last cleanup
+ExitCondition = ChangeTrend or is_SL_reached
+
+if ExitCondition
+    is_TP1_reached := false
+    is_TP2_reached := false
+    is_TP3_reached := false
+    is_SL_reached := false
